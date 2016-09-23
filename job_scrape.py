@@ -1,4 +1,4 @@
-# scrapes craigslist's city of chicagos food bev and hosp jobs page for lastest 100 postings
+# scrapes craigslist's city of chicagos food bev and hosp jobs page for latest 100 postings
 # implement radius, zip code, and as cmd args
 
 import urllib
@@ -9,17 +9,16 @@ class craigsCrawler:
 
   def __init__(self):
     self.url = 'https://chicago.craigslist.org/search/chc/fbh?sort=date'
-    self. blurb_limit = 60 # amount of text to print to console
-    self.jobs = [] # to be popuated with jobs
+    self. blurb_limit = 60 # amount of text to print to console for each job title
+    self.jobs = [] # to be popuated with jobs as they are parsed
 
   def parse_date(self, date_string):
     split1 = date_string.split('-')
     year = split1[0]
     month = split1[1]
-    split2 = split1[2]
-    split2 = split2.split(' ')
+    split2 = split1[2].split(' ')
     day = split2[0]
-    time = split2[1] # 24:00
+    time = split2[1] # 24:00 format
     return [day, month, year, time]
 
   def add_job(self, job):
@@ -40,17 +39,20 @@ class job:
 
   def get_day(self):
     return self.day
+    
+  def get_time(self):
+    return self.time
 
 
-#function to get and parse html
 def get_page(url):
+  """try to download and parse an html doc with lxml"""
   try:
     print 'getting page'
     handle = urllib.urlopen(url)
     page = parse(handle).getroot()
     return page
   except IOError as e:
-    print 'problem getting page. are you connected to the internet?'
+    print 'problem connecting'
     return None
   except UnicodeEncodeError:
     print 'format error'
@@ -61,29 +63,30 @@ def get_page(url):
 
 def main():
   c = craigsCrawler()
-  today = time.strftime('%d') # this day
-  jobs_today = 0
-  html = get_page(c.url)
+  html = get_page(c.url)# try to download and parse the html doc to lxml.html object tree
   if html != None:
     pls = html.find_class('pl') # inner most class row row posting with class name
     for pl in pls:
-      for thing in pl:
-        if thing.tag == 'time': # looking for tag -time- with attr -datetime- 
-          date_posted = thing.get('datetime') # use get which takes attr and returns the value
-          parsed_date = c.parse_date(date_posted) # that day
-          if parsed_date[0] == today: # if same as today
-            jobs_today += 1 # it was posted today
-        elif thing.tag == 'a': # also looking for the job description title text
-          job_text = thing.text 
-          blurb = job_text[:c.blurb_limit] # crop it to the blurb limit
-      j = job(job_text, parsed_date[0], parsed_date[1], parsed_date[2], parsed_date[3],)
-      c.add_job(j)
-      #print blurb + ' posted on ' + date_posted
-  print str(jobs_today) + ' new jobs posted today on fbh:'
-  #print str(len(c.jobs)) + ' jobs scraped total'
+      for element in pl:
+        if element.tag == 'time':
+          date_posted = element.get('datetime')
+          parsed_date = c.parse_date(date_posted)
+        elif element.tag == 'a': # also looking for the job description title text
+          job_text = element.text
+      j = job(job_text, parsed_date[0], parsed_date[1], parsed_date[2], parsed_date[3],)# create a job instance
+      c.add_job(j)# add it to the crawler
+  today = time.strftime('%d')
+  new_jobs = []
   for j in c.jobs:
     if j.get_day() == today:
-      print j.get_text()[:c.blurb_limit]
+      new_jobs.append(j)
+  new_jobs.reverse()
+  for j in new_jobs:
+    print j.get_text()[:c.blurb_limit] + ' posted at ' + j.get_time()
+  print str(len(new_jobs)) + ' jobs posted today'
+  print str(len(c.jobs)) + ' jobs scraped'
 
 main()
+
+
 
