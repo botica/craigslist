@@ -1,5 +1,8 @@
 # scrapes craigslist's city of chicagos food bev and hosp jobs page for latest 100 postings
-# implement radius, zip code, and as cmd args
+# todo:
+# implement searching by radius, zip code, and as cmd args
+# implement parsing the location, usingg outer element of class 'txt' not 'pl'
+# implement searching from other craigslist locations and job types
 
 import urllib
 import time
@@ -41,11 +44,19 @@ class job:
     return self.day
     
   def get_time(self):
-    return self.time
+    t = 'AM'
+    hours, minutes = self.time.split(':')
+    h = int(hours)
+    if h >= 12:
+      t = 'PM'
+    if h > 12:
+      h -= 12
+    hours = str(h)
+    return hours   + ':' + minutes + ' ' + t
 
 
 def get_page(url):
-  """try to download and parse an html doc with lxml"""
+  """trys to download and parse an html doc with lxml"""
   try:
     print 'getting page'
     handle = urllib.urlopen(url)
@@ -75,18 +86,17 @@ def main():
           job_text = element.text
       j = job(job_text, parsed_date[0], parsed_date[1], parsed_date[2], parsed_date[3],)# create a job instance
       c.add_job(j)# add it to the crawler
-  today = time.strftime('%d')
+  today = time.strftime('%d')# prepare information for printing
   new_jobs = []
   for j in c.jobs:
     if j.get_day() == today:
       new_jobs.append(j)
   new_jobs.reverse()
-  for j in new_jobs:
-    print j.get_text()[:c.blurb_limit] + ' posted at ' + j.get_time()
-  print str(len(new_jobs)) + ' jobs posted today'
-  print str(len(c.jobs)) + ' jobs scraped'
+  for j in new_jobs:# print about the jobs posted on he current day
+    print j.get_text()[:c.blurb_limit] + ' posted today at ' + j.get_time()
+  print ''
+  print str(len(new_jobs)) + ' jobs posted today on ' + c.url
+  print str(len(c.jobs)) + ' jobs scraped total'
 
 main()
-
-
 
